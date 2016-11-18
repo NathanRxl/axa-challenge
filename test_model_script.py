@@ -51,12 +51,12 @@ for idFold, (train_indexes, test_indexes) in enumerate(KFold(len(X_train), nbFol
 # consolidated error
 if verbose >= 1:
     print(
-    """
-    Statistics on error:
-        \n   -> Mean: %0.2f
-        \n   -> Std: %0.2f
-        \n   -> Min: %0.2f
-        \n   -> Max: %0.2f
+        """
+        Statistics on error:
+            \n   -> Mean: %0.2f
+            \n   -> Std: %0.2f
+            \n   -> Min: %0.2f
+            \n   -> Max: %0.2f
 
-    """ % (np.mean(list_errors), np.std(list_errors), np.min(list_errors), np.max(list_errors))
+        """ % (np.mean(list_errors), np.std(list_errors), np.min(list_errors), np.max(list_errors))
     )

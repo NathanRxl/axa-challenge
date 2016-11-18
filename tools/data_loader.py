@@ -1,5 +1,6 @@
 import pandas as pd
 
+
 def data_loader(path, nrows):
     # load row dataset from csv file
     row_dataset = pd.read_csv(path, nrows=nrows, sep=";")
