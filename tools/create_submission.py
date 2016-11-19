@@ -3,18 +3,18 @@ import time
 import os
 
 
-def create_submission(X_test, y_predict, folder="submissions"):
+def create_submission(x_test, y_predict, folder="submissions"):
     """ Generate submission file from X_test and y_predict
 
-    :param X_test: test dataset. Should contain at least two columns "DATE" and "ASS_ASSIGNMENT"
+    :param x_test: test dataset. Should contain at least two columns "DATE" and "ASS_ASSIGNMENT"
     :param y_predict: prediction done by ML. Should be an array of integers and have the same length than X_test
     :param folder: folder in which the submission will be stored
     """
 
     # create a dataframe that looks like the submission
     df_submission = pd.DataFrame()
-    df_submission["DATE"] = X_test["DATE"]
-    df_submission["ASS_ASSIGNMENT"] = X_test["ASS_ASSIGNMENT"]
+    df_submission["DATE"] = x_test["DATE"]
+    df_submission["ASS_ASSIGNMENT"] = x_test["ASS_ASSIGNMENT"]
     df_submission["prediction"] = y_predict.astype(int)  # in case we forgot to convert in int before
 
     # convert dataframe to string
