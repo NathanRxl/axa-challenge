@@ -24,7 +24,7 @@ def check_linex_args(function):
 
 
 @check_linex_args
-def linex_error(y_true, y_predict, alpha=-0.1):
+def linex_error(y_true, y_predict, alpha=0.1):
     """
     Compute LinEx loss from true labels and predicted labels
 
@@ -35,7 +35,7 @@ def linex_error(y_true, y_predict, alpha=-0.1):
     alpha : exponential coefficient in linex loss. Should be a negative float as stated in challenge description.
     >>> linex_error([1, 1], [1, 1])
     0.0
-    >>> linex_error(np.array([1, 2]), np.array([1, 12])) == np.exp(1) - 2
+    >>> linex_error(np.array([1, 2]), np.array([1, 12])) == np.exp(-1)
     True
     """
     error = np.array(y_true) - np.array(y_predict)
