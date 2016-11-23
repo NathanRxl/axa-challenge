@@ -35,10 +35,10 @@ def linex_error(y_true, y_predict, alpha=0.1):
     alpha : exponential coefficient in linex loss. Should be a negative float as stated in challenge description.
     >>> linex_error([1, 1], [1, 1])
     0.0
-    >>> linex_error(np.array([1, 2]), np.array([1, 12])) == np.exp(-1)
+    >>> linex_error(np.array([1, 2]), np.array([1, 12])) == np.exp(-1) / 2
     True
     """
     error = np.array(y_true) - np.array(y_predict)
     max_error = max(error)
     log_sum_exp = max_error + np.log(np.sum(np.exp(alpha * (error - max_error))))
-    return np.exp(log_sum_exp) - np.sum(alpha * error) - len(y_true)
+    return (np.exp(log_sum_exp) - np.sum(alpha * error)) / len(y_true) - 1
