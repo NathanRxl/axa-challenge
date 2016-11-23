@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.optimize
 
 
 def check_linex_args(function):
@@ -47,3 +48,24 @@ def linex_error(y_true, y_predict, alpha=0.1):
     max_error = max(error)
     log_sum_exp = max_error + np.log(np.sum(np.exp(alpha * (error - max_error))))
     return (np.exp(log_sum_exp) - np.sum(alpha * error)) / len(y_true) - 1
+
+
+def mean_error(score):
+    """
+    Given a score, returns the mean error according to linex loss with alpha=0.1 (default value of linex_error).
+    The mean_error is assumed to be a negative integer, which means the prediction is assumed to be all the time overestimating
+    the true number of calls.
+    Basically, this function solve e^(0.1 * mean_error) - 0.1 * mean_error - 1 = score, with mean_error in Z-.
+
+    Parameters
+    ----------
+    score : type float
+
+    Doctests
+    --------
+    >>> 5 == linex_error([mean_error(5)], [0])
+    True
+    """
+    objective = lambda mean_err: np.exp(0.1 * mean_err) - 0.1 * mean_err - 1 - score
+    x0_estimation = np.array([- 10 * score])
+    return round(scipy.optimize.fsolve(objective, x0_estimation, xtol=1e-13)[0])
