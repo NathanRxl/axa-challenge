@@ -1,8 +1,21 @@
 import numpy as np
 import scipy.optimize
+import warnings
 
 
 def check_linex_args(function):
+    """
+    Decorator of linex_score function. Provide some checks on arguments, and some doctests.
+
+    Doctests
+    --------
+    >>> linex_score([1, 1], [1, 1])
+    0.0
+    >>> linex_score(np.array([1, 2]), np.array([1, 12])) == np.exp(-1) / 2
+    True
+    >>> linex_score([0, 0], [5, 5]) == linex_score([0], [5])
+    True
+    """
     def assert_args(*args, **kwargs):
         y_true = kwargs['y_true'] if 'y_true' in kwargs else args[0]
         y_predict = kwargs['y_predict'] if 'y_predict' in kwargs else args[1]
@@ -25,7 +38,7 @@ def check_linex_args(function):
 
 
 @check_linex_args
-def linex_error(y_true, y_predict, alpha=0.1):
+def linex_score(y_true, y_predict, alpha=0.1):
     """
     Compute LinEx loss from true labels and predicted labels
 
@@ -34,38 +47,44 @@ def linex_error(y_true, y_predict, alpha=0.1):
     y_true : true values of y. Could be a list, a flat array or an array of shape (1, N). Must be the same length as y_predict.
     y_predict : predicted values of y. Could be a list, a flat array or an array of shape (1, N). Must be the same length as y_true.
     alpha : exponential coefficient in linex loss. Should be a negative float as stated in challenge description.
-
-    Doctests
-    --------
-    >>> linex_error([1, 1], [1, 1])
-    0.0
-    >>> linex_error(np.array([1, 2]), np.array([1, 12])) == np.exp(-1) / 2
-    True
-    >>> linex_error([0, 0], [5, 5]) == linex_error([0], [5])
-    True
     """
     error = np.array(y_true) - np.array(y_predict)
     max_error = max(error)
     log_sum_exp = max_error + np.log(np.sum(np.exp(alpha * (error - max_error))))
-    return (np.exp(log_sum_exp) - np.sum(alpha * error)) / len(y_true) - 1
+    return (np.exp(log_sum_exp) - np.sum(alpha * error)) / len(error) - 1
 
 
-def mean_error(score):
+def check_inverse_linex_args(function):
     """
-    Given a score, returns the mean error according to linex loss with alpha=0.1 (default value of linex_error).
-    The mean_error is assumed to be a negative integer, which means the prediction is assumed to be all the time overestimating
-    the true number of calls.
+    Decorator of inverse_linex_score function. Provide some checks on arguments, and some doctests.
+
+    Doctests
+    --------
+    >>> 5 == linex_score([inverse_linex_score(5)], [0])
+    True
+    """
+    def assert_args(*args, **kwargs):
+        score = kwargs['score'] if 'score' in kwargs else args[0]
+        assert(score > 0), "score must be positive in inverse_linex_score"
+        return function(*args, **kwargs)
+    return assert_args
+
+
+@check_inverse_linex_args
+def inverse_linex_score(score):
+    """
+    Given a score, returns the mean error according to linex loss with alpha=0.1 (default value of linex_score).
+    The mean error is assumed to be a negative integer, which means the prediction is assumed to be all the time
+    overestimating the true number of calls.
     Basically, this function solve e^(0.1 * mean_error) - 0.1 * mean_error - 1 = score, with mean_error in Z-.
 
     Parameters
     ----------
-    score : type float
-
-    Doctests
-    --------
-    >>> 5 == linex_error([mean_error(5)], [0])
-    True
+    score : type float, positive
     """
-    objective = lambda mean_err: np.exp(0.1 * mean_err) - 0.1 * mean_err - 1 - score
-    x0_estimation = np.array([- 10 * score])
-    return round(scipy.optimize.fsolve(objective, x0_estimation, xtol=1e-13)[0])
+    alpha = 0.1
+    objective = lambda mean_err: np.exp(alpha * mean_err) - alpha * mean_err - 1 - score
+    # Use exponential linear approximation for score < 2 and ignore exponential for score >=2 to estimate the solution
+    x0_estimation = np.array(- np.sqrt(2 * score / pow(alpha, 2))) if score < 2 else - (score + 1) / alpha
+    warnings.filterwarnings('ignore', 'The iteration is not making good progress')
+    return scipy.optimize.fsolve(objective, x0_estimation, xtol=1e-13)[0]
