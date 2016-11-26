@@ -1,4 +1,4 @@
-from .Preprocesser import Preprocesser
+from preprocessing import Preprocesser
 
 preprocesser = Preprocesser()
 
