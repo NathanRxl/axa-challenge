@@ -1,6 +1,15 @@
 import pandas as pd
-import numpy as np
 from workalendar.europe import France
+
+# Dictionary with "new date feature column name" as keys and "attribute taken from date (pd.Timestamp)" as values
+SPLIT_DATES = {
+    "YEAR": "year",
+    "MONTH": "month",
+    "DAY": "day",
+    "HOUR": "hour",
+    "MINUTE": "minute",
+    "DAY_OF_WEEK": "dayofweek",
+}
 
 
 class Preprocesser:
@@ -9,22 +18,26 @@ class Preprocesser:
     NB: during all preprocess pipeline, the dataframe is modified directly (not a copy of it) to prevent memory issues
     """
 
+    def __init__(self):
+        self.df = pd.DataFrame()
+
     def cast_dates_into_timestamp(self):
         # convert dates into pandas.Timestamp
         self.df["DATE"] = self.df["DATE"].apply(lambda date: pd.Timestamp(date))
 
     def split_dates(self):
-        """ Create columns YEAR, MONTH, DAY, HOUR and MINUTE from DATE. """
+        """ Create columns in SPLIT_DATES keys from DATE. """
 
         # split dates
-        self.df["YEAR"] = self.df["DATE"].apply(lambda date: date.year)
-        self.df["MONTH"] = self.df["DATE"].apply(lambda date: date.month)
-        self.df["DAY"] = self.df["DATE"].apply(lambda date: date.day)
-        self.df["HOUR"] = self.df["DATE"].apply(lambda date: date.hour)
-        self.df["MINUTE"] = self.df["DATE"].apply(lambda date: date.minute)
+        for new_date_feature in SPLIT_DATES:
+            self.df[new_date_feature] = self.df["DATE"].apply(lambda date: getattr(date, SPLIT_DATES[new_date_feature]))
 
-    def __is_daytime(self, date):
-        """ Function used inside fill_not_working_days method to convert a date into a boolean representing the daytime (1 for daytime, 0 for nighttime)"""
+    @staticmethod
+    def __is_daytime(date):
+        """
+        Function used inside fill_not_working_days method to convert a date into a boolean representing the daytime
+        (1 for daytime, 0 for nighttime)
+        """
         if date.hour in [23, 0, 1, 2, 3, 4, 5, 6, 7]:
             if date.hour == 23 and date.minute == 0:
                 return 1
@@ -38,7 +51,7 @@ class Preprocesser:
 
         # days-off
         cal = France()
-        self.df["DAY_OFF"] = self.df["DATE"].apply(lambda date: int(cal.is_holiday(date.to_datetime())))
+        self.df["DAY_OFF"] = self.df["DATE"].apply(lambda date: int(cal.is_holiday(date.to_pydatetime())))
 
         # week-end
         self.df["WEEK_END"] = self.df["DATE"].apply(lambda date: int(date.dayofweek in [5, 6]))
@@ -52,10 +65,13 @@ class Preprocesser:
         # TODO
         # long week-ends
 
-        # holidays
+        # TODO
+        # school holidays
 
     def clean_csv(self, source_path, destination_path, sep, usecols, group_by=False):
-        """ From raw csv dataset, create a clean csv by selecting useful columns and grouping by (DATE, ASS_ASSIGNMENT)"""
+        """
+        From raw csv dataset, create a clean csv by selecting useful columns and grouping by (DATE, ASS_ASSIGNMENT)
+        """
 
         # read csv
         self.df = pd.read_csv(source_path, sep=sep, usecols=usecols)
@@ -94,7 +110,9 @@ class Preprocesser:
         # loop over ass_assignments to store into hdf_file
         hdf_file = pd.HDFStore(destination_path)
         for ass_assignment in ass_assignments:
-            hdf_file[ass_assignment] = self.df[self.df["ASS_ASSIGNMENT"] == ass_assignment].drop("ASS_ASSIGNMENT", axis=1)
+            hdf_file[ass_assignment] = (
+                self.df[self.df["ASS_ASSIGNMENT"] == ass_assignment].drop("ASS_ASSIGNMENT", axis=1)
+            )
 
         # close hdf file
         hdf_file.close()
