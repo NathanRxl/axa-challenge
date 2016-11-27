@@ -1,36 +1,28 @@
 from preprocessing import Preprocesser
+from time import time
+
+initial_time = time()
 
 preprocesser = Preprocesser()
 
 # Clean csv step
-
-# train
+print("Clean train csv...")
 source_path = "data/train_2011_2012_2013.csv"
 destination_path = "data/clean_train.csv"
 sep = ";"
-batch_size = 500000
+usecols = ["DATE", "ASS_ASSIGNMENT", "CSPL_RECEIVED_CALLS"]
+preprocesser.clean_csv(source_path, destination_path, sep, usecols, group_by=True)
 
-print("Clean train csv...")
-preprocesser.clean_csv(source_path, destination_path, sep, batch_size=batch_size, verbose=True)
-
-# submission
+print("Clean sub csv...")
 source_path = "data/submission.txt"
 destination_path = "data/clean_submission.csv"
 sep = "\t"
-batch_size = 50000
-
-print("\nClean sub csv...")
-preprocesser.clean_csv(source_path, destination_path, sep, batch_size=batch_size, verbose=True)
-
-# Group by tuple (DATE, ASS_ASSIGNMENT) for train dataset
-print("\nGroup by (DATE, ASS_ASSIGNMENT) for train dataset...")
-source_path = "data/clean_train.csv"
-destination_path = "data/grouped_by_train.csv"
-preprocesser.group_by_date_ass_assignment(source_path, destination_path)
+usecols = ["DATE", "ASS_ASSIGNMENT", "prediction"]
+preprocesser.clean_csv(source_path, destination_path, sep, usecols)
 
 # Create temporal features
 print("\nCreate temporal features for train dataset...")
-source_path = "data/grouped_by_train.csv"
+source_path = "data/clean_train.csv"
 destination_path = "data/preprocessed_train.csv"
 preprocesser.create_temporal_features(source_path, destination_path)
 
@@ -50,3 +42,4 @@ source_path = "data/preprocessed_submission.csv"
 destination_path = "data/submission.h5"
 preprocesser.csv_to_hdf(source_path, destination_path)
 
+print("Preprocessing completed in %0.2f seconds" % (time() - initial_time))

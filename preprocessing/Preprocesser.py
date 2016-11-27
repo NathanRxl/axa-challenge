@@ -13,12 +13,6 @@ class Preprocesser:
         # convert dates into pandas.Timestamp
         self.df["DATE"] = self.df["DATE"].apply(lambda date: pd.Timestamp(date))
 
-    def drop_useless_columns(self):
-        if "CSPL_RECEIVED_CALLS" in self.df.columns:
-            self.df = self.df[["DATE", "ASS_ASSIGNMENT", "CSPL_RECEIVED_CALLS"]]
-        else:
-            self.df = self.df[["DATE", "ASS_ASSIGNMENT", "prediction"]]
-
     def split_dates(self):
         """ Create columns YEAR, MONTH, DAY, HOUR and MINUTE from DATE. """
 
@@ -60,34 +54,19 @@ class Preprocesser:
 
         # holidays
 
-    def clean_csv(self, source_path, destination_path, sep, batch_size=100000, verbose=False):
+    def clean_csv(self, source_path, destination_path, sep, usecols, group_by=False):
+        """ From raw csv dataset, create a clean csv by selecting useful columns and grouping by (DATE, ASS_ASSIGNMENT)"""
 
-        # read first data
-        self.df = pd.read_csv(source_path, sep=sep, nrows=batch_size)
+        # read csv
+        self.df = pd.read_csv(source_path, sep=sep, usecols=usecols)
 
-        # keep track of number of batchs done
-        batch_nb = 0
-        while True:
-            if verbose: print("Batch #%d..." % batch_nb)
+        # group by and sum received calls
+        if group_by:
+            group_by = self.df.groupby(["DATE", "ASS_ASSIGNMENT"])
+            self.df = pd.DataFrame(group_by["CSPL_RECEIVED_CALLS"].sum()).reset_index()
 
-            # drop useless columns
-            self.drop_useless_columns()
-
-            # append processed data to csv
-            with open(destination_path, "w" if batch_nb == 0 else "a") as file:
-                header = (batch_nb == 0)
-                self.df.to_csv(file, index=False, header=header)
-
-            # if df has not the size of batch_size, it means we just preprocessed the last batch -> we end the loop
-            if batch_size != len(self.df):
-                break
-
-            # update batch counter
-            batch_nb += 1
-
-            # read next batch data
-            self.df = pd.read_csv(source_path, sep=sep, nrows=batch_size, skiprows=np.arange(1, batch_size * batch_nb))
-
+        # write csv
+        self.df.to_csv(destination_path, index=False)
 
     def create_temporal_features(self, source_path, destination_path):
         # read csv
@@ -101,17 +80,6 @@ class Preprocesser:
 
         # fill day-off column
         self.fill_not_working_days()
-
-        # write csv
-        self.df.to_csv(destination_path, index=False)
-
-    def group_by_date_ass_assignment(self, source_path, destination_path):
-        # read csv
-        self.df = pd.read_csv(source_path)
-
-        # group by and sum received calls
-        group_by = self.df.groupby(["DATE", "ASS_ASSIGNMENT"])
-        self.df = pd.DataFrame(group_by["CSPL_RECEIVED_CALLS"].sum()).reset_index()
 
         # write csv
         self.df.to_csv(destination_path, index=False)
