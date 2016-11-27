@@ -1,56 +1,42 @@
 import pandas as pd
+import numpy as np
 import time
 import os
-
-
-def create_submission(y_predict, x_test=pd.DataFrame(), folder="submissions"):
-    """ Generate submission file from x_test and y_predict if x_test is given, else fill a submission with y_predict
-    (y_predict must be sorted as in the submission files in this case)
-
-    Parameters
-    ----------
-    x_test (facultative): type ndarray, shape (82909, >=2)
-        Test dataset. Should contain at least two columns "DATE" and "ASS_ASSIGNMENT".
-    y_predict: type ndarray, shape (82909, 1)
-        Prediction done by ML. Should be an array of integers. If x_test is not provided, y_predict must be sorted in
-        the same order than rows appear in the submisision file
-    folder: type string
-        folder in which the submission will be stored
-    """
-    if x_test.empty:
-        df_submission = pd.read_csv("data/submission.txt", sep="\t")
-    else:
-        # create a dataframe that looks like the submission
-        df_submission = pd.DataFrame()
-        df_submission["DATE"] = x_test["DATE"]
-        df_submission["ASS_ASSIGNMENT"] = x_test["ASS_ASSIGNMENT"]
-
-    df_submission["prediction"] = y_predict.astype(int)  # in case we forgot to convert in int before
-
-    # convert dataframe to string
-    submission_content = df_submission.to_csv(index=False, date_format="%Y-%m-%d %H:%M:%S.000", sep="\t")
-
-    # create folder to store submission file if the folder doesn't exist yet
-    if not os.path.exists(folder):
-        os.makedirs(folder)
-
-    # create file name according to current date
-    file_name = "%s/submission_%s.txt" % (folder, time.strftime("%Y%m%d_%H%M%S"))
-
-    # write into submission file
-    with open(file_name, 'w') as file:
-        file.write(submission_content)
 
 
 class Submissioner:
     def __init__(self):
         self.predictions = list()
+        # during the saving process, we will save a multi-index created from dates and ass_assignments
+        self.multi_index = None
 
-    def update_week(self, week_nb):
-        self.week_nb = week_nb
+    def create_submission(self, ref_submission_path="data/submission.txt", folder="submissions"):
+        # retrieve submission file reference
+        ref_submission = pd.read_csv(ref_submission_path, sep='\t')
+        ref_submission["DATE"] = ref_submission["DATE"].apply(lambda date: pd.Timestamp(date))
 
-    def create_submission(self):
-        pass
+        # set predictions in dataframe
+        ref_submission.set_index(["DATE", "ASS_ASSIGNMENT"], inplace=True)
+        ref_submission.loc[self.multi_index] = np.array(self.predictions).reshape((len(self.predictions), 1))
+        submission = ref_submission.reset_index()
+
+        # convert dataframe to string
+        submission_content = submission.to_csv(index=False, date_format="%Y-%m-%d %H:%M:%S.000", sep="\t")
+
+        # create folder to store submission file if the folder doesn't exist yet
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+
+        # create file name according to current date
+        file_name = "%s/submission_%s.txt" % (folder, time.strftime("%Y%m%d_%H%M%S"))
+
+        # write into submission file
+        with open(file_name, 'w') as file:
+            file.write(submission_content)
 
     def save(self, dates_test, ass_assignment, y_predict):
-        self.predictions.append((dates_test, ass_assignment, y_predict))
+        if self.multi_index is None:
+            self.multi_index = pd.MultiIndex.from_product([dates_test, [ass_assignment]])
+        else:
+            self.multi_index = self.multi_index.append(pd.MultiIndex.from_product([dates_test, [ass_assignment]]))
+        self.predictions.extend(y_predict)

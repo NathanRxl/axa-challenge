@@ -14,10 +14,8 @@ data_loader = DataLoader(train_path, submission_path)
 
 # loop over week of submissions
 for week_nb in np.arange(12):
-    print("\n")
-    print(week_nb)
+    print("\nWeek #%d..." % week_nb)
     data_loader.update_week(week_nb)
-    submissioner.update_week(week_nb)
 
     # loop over ass_assignments
     for ass_assignment, dates_train, X_train, y_train, dates_test, X_test in data_loader:
@@ -40,6 +38,9 @@ for week_nb in np.arange(12):
         # predict
         y_predict = clf.predict(X_test)
 
+        # save prediction
         submissioner.save(dates_test, ass_assignment, y_predict)
 
 submissioner.create_submission()
+
+print("\nDone!")
