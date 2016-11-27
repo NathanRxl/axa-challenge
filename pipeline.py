@@ -3,14 +3,17 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-from tools import data_loader, create_submission
+train_path = "data/train.h5"
+submission_path = "data/submission.h5"
 
 # object that saves prediction and gather them into a final submission file
 submissioner = Submissioner()
+data_loader = DataLoader()
 
 # loop over week of submissions
 for week_nb in np.arange(11):
-    data_loader = DataLoader(week_nb=week_nb)
+    data_loader.update_week(week_nb)
+    submissioner.update_week(week_nb)
 
     # loop over ass_assignments
     for ass_assignment, dates_train, X_train, y_train, dates_test, X_test in data_loader:

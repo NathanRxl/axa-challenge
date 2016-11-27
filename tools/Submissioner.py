@@ -40,3 +40,17 @@ def create_submission(y_predict, x_test=pd.DataFrame(), folder="submissions"):
     # write into submission file
     with open(file_name, 'w') as file:
         file.write(submission_content)
+
+
+class Submissioner:
+    def __init__(self):
+        self.predictions = list()
+
+    def update_week(self, week_nb):
+        self.week_nb = week_nb
+
+    def create_submission(self):
+        pass
+
+    def save(self, dates_test, ass_assignment, y_predict):
+        self.predictions.append((dates_test, ass_assignment, y_predict))
