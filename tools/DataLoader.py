@@ -15,18 +15,18 @@ def data_loader(path, nrows):
 
 class DataLoader:
     WEEKS_DATES = {
-        0 : (pd.Timestamp("2012-12-28 00:00:00"), pd.Timestamp('2013-01-03 23:30:00')),
-        1 : (pd.Timestamp('2013-02-02 00:00:00'), pd.Timestamp('2013-02-08 23:30:00')),
-        2 : (pd.Timestamp('2013-03-06 00:00:00'), pd.Timestamp('2013-03-12 23:30:00')),
-        3 : (pd.Timestamp('2013-04-10 00:00:00'), pd.Timestamp('2013-04-16 23:30:00')),
-        4 : (pd.Timestamp('2013-05-13 00:30:00'), pd.Timestamp('2013-05-19 23:30:00')),
-        5 : (pd.Timestamp('2013-06-12 00:00:00'), pd.Timestamp('2013-06-18 23:30:00')),
-        6 : (pd.Timestamp('2013-07-16 00:00:00'), pd.Timestamp('2013-07-22 23:30:00')),
-        7 : (pd.Timestamp('2013-08-15 00:00:00'), pd.Timestamp('2013-08-21 23:30:00')),
-        8 : (pd.Timestamp('2013-09-14 00:00:00'), pd.Timestamp('2013-09-20 23:30:00')),
-        9 : (pd.Timestamp('2013-10-18 00:00:00'), pd.Timestamp('2013-10-24 23:30:00')),
-        10 : (pd.Timestamp('2013-11-20 00:00:00'), pd.Timestamp('2013-11-26 23:30:00')),
-        11 : (pd.Timestamp('2013-12-22 00:00:00'), pd.Timestamp('2013-12-28 23:30:00'))
+        0: (pd.Timestamp("2012-12-28 00:00:00"), pd.Timestamp('2013-01-03 23:30:00')),
+        1: (pd.Timestamp('2013-02-02 00:00:00'), pd.Timestamp('2013-02-08 23:30:00')),
+        2: (pd.Timestamp('2013-03-06 00:00:00'), pd.Timestamp('2013-03-12 23:30:00')),
+        3: (pd.Timestamp('2013-04-10 00:00:00'), pd.Timestamp('2013-04-16 23:30:00')),
+        4: (pd.Timestamp('2013-05-13 00:30:00'), pd.Timestamp('2013-05-19 23:30:00')),
+        5: (pd.Timestamp('2013-06-12 00:00:00'), pd.Timestamp('2013-06-18 23:30:00')),
+        6: (pd.Timestamp('2013-07-16 00:00:00'), pd.Timestamp('2013-07-22 23:30:00')),
+        7: (pd.Timestamp('2013-08-15 00:00:00'), pd.Timestamp('2013-08-21 23:30:00')),
+        8: (pd.Timestamp('2013-09-14 00:00:00'), pd.Timestamp('2013-09-20 23:30:00')),
+        9: (pd.Timestamp('2013-10-18 00:00:00'), pd.Timestamp('2013-10-24 23:30:00')),
+        10: (pd.Timestamp('2013-11-20 00:00:00'), pd.Timestamp('2013-11-26 23:30:00')),
+        11: (pd.Timestamp('2013-12-22 00:00:00'), pd.Timestamp('2013-12-28 23:30:00'))
     }
 
     LIST_ASS_ASSIGNMENTS = ['CMS', 'Crises', 'Domicile', 'Gestion',
@@ -57,7 +57,7 @@ class DataLoader:
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         try:
             # for each iteration we retrieve the ass_assignment
             ass_assignment = DataLoader.LIST_ASS_ASSIGNMENTS[self.idx_ass_assignment]
@@ -70,9 +70,18 @@ class DataLoader:
         train_df = pd.read_hdf(self.train_path, key=ass_assignment)
         submission_df = pd.read_hdf(self.submission_path, key=ass_assignment)
 
+        # convert dates
+        train_df["DATE"] = train_df["DATE"].apply(lambda date: pd.Timestamp(date))
+        submission_df["DATE"] = submission_df["DATE"].apply(lambda date: pd.Timestamp(date))
+
+        # select dates
+        # TODO: put dates as index of dataframe in order to use where kwarg in pandas.read (cf 'http://stackoverflow.com/questions/25681308/pandas-read-hdf-query-by-date-and-time-range')
+        train_df = train_df[(train_df["DATE"] < self.week_begin)]
+        submission_df = submission_df[(self.week_begin <= submission_df["DATE"]) & (submission_df["DATE"] <= self.week_end)]
+
         # split data
-        dates_train = train_df["DATE"]
-        dates_test = submission_df["DATE"]
+        dates_train = train_df["DATE"].values
+        dates_test = submission_df["DATE"].values
         X_train = train_df.drop(["DATE", "CSPL_RECEIVED_CALLS"], axis=1)
         X_test = submission_df.drop(["DATE", "prediction"], axis=1)
         y_train = train_df["CSPL_RECEIVED_CALLS"].values
