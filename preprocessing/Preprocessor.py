@@ -1,22 +1,22 @@
 import pandas as pd
 from workalendar.europe import France
 
-# Dictionary with "new date feature column name" as keys and "attribute taken from date (pd.Timestamp)" as values
-SPLIT_DATES = {
-    "YEAR": "year",
-    "MONTH": "month",
-    "DAY": "day",
-    "HOUR": "hour",
-    "MINUTE": "minute",
-    "DAY_OF_WEEK": "dayofweek",
-}
 
-
-class Preprocesser:
+class Preprocessor:
     """ Class performing preprocessing of the data for both train and submission files
 
     NB: during all preprocess pipeline, the dataframe is modified directly (not a copy of it) to prevent memory issues
     """
+
+    # Dictionary with "new date feature column name" as keys and "attribute taken from date (pd.Timestamp)" as values
+    SPLIT_DATES = {
+        "YEAR": "year",
+        "MONTH": "month",
+        "DAY": "day",
+        "HOUR": "hour",
+        "MINUTE": "minute",
+        "DAY_OF_WEEK": "dayofweek",
+    }
 
     def __init__(self):
         self.df = pd.DataFrame()
@@ -29,8 +29,10 @@ class Preprocesser:
         """ Create columns in SPLIT_DATES keys from DATE. """
 
         # split dates
-        for new_date_feature in SPLIT_DATES:
-            self.df[new_date_feature] = self.df["DATE"].apply(lambda date: getattr(date, SPLIT_DATES[new_date_feature]))
+        for new_date_feature in self.SPLIT_DATES:
+            self.df[new_date_feature] = (
+                self.df["DATE"].apply(lambda date: getattr(date, self.SPLIT_DATES[new_date_feature]))
+            )
 
     @staticmethod
     def __is_daytime(date):
@@ -78,8 +80,7 @@ class Preprocesser:
 
         # group by and sum received calls
         if group_by:
-            group_by = self.df.groupby(["DATE", "ASS_ASSIGNMENT"])
-            self.df = pd.DataFrame(group_by["CSPL_RECEIVED_CALLS"].sum()).reset_index()
+            self.df = self.df.groupby(["DATE", "ASS_ASSIGNMENT"])["CSPL_RECEIVED_CALLS"].sum().reset_index()
 
         # write csv
         self.df.to_csv(destination_path, index=False)
