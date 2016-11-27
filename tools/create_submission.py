@@ -18,7 +18,7 @@ def create_submission(y_predict, x_test=pd.DataFrame(), folder="submissions"):
         folder in which the submission will be stored
     """
     if x_test.empty:
-        df_submission = pd.read_csv("%s/submission0.txt" % folder, sep="\t")
+        df_submission = pd.read_csv("data/submission.txt", sep="\t")
     else:
         # create a dataframe that looks like the submission
         df_submission = pd.DataFrame()
