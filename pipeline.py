@@ -21,7 +21,7 @@ for week_nb in np.arange(12):
     for ass_assignment, dates_train, X_train, y_train, dates_predict, X_predict in data_loader:
 
         # sometimes we don't need to do predictions for certain week and ass_assignment, we then continue the loop without processing ML
-        if len(dates_test) == 0:
+        if len(dates_predict) == 0:
             continue
 
         # model

@@ -40,13 +40,16 @@ class DataLoader:
         self.week_end = DataLoader.WEEKS_DATES[week_nb][1]
 
         # reinitialize idx_ass_assignment
-        self.idx_ass_assignment = 0
+        self.idx_ass_assignment = -1
 
     def __iter__(self):
         return self
 
     def __next__(self):
         try:
+            # update idx_ass_assignment
+            self.idx_ass_assignment += 1
+
             # for each iteration we retrieve the ass_assignment
             ass_assignment = DataLoader.LIST_ASS_ASSIGNMENTS[self.idx_ass_assignment]
         except IndexError:
@@ -74,5 +77,4 @@ class DataLoader:
         X_predict = submission_df.drop(["DATE", "prediction"], axis=1)
         y_train = train_df["CSPL_RECEIVED_CALLS"].values
 
-        self.idx_ass_assignment += 1
         return ass_assignment, dates_train, X_train, y_train, dates_predict, X_predict
