@@ -81,10 +81,10 @@ class DataLoader:
 
         # split data
         dates_train = train_df["DATE"].values
-        dates_test = submission_df["DATE"].values
+        dates_predict = submission_df["DATE"].values
         X_train = train_df.drop(["DATE", "CSPL_RECEIVED_CALLS"], axis=1)
-        X_test = submission_df.drop(["DATE", "prediction"], axis=1)
+        X_predict = submission_df.drop(["DATE", "prediction"], axis=1)
         y_train = train_df["CSPL_RECEIVED_CALLS"].values
 
         self.idx_ass_assignment += 1
-        return ass_assignment, dates_train, X_train, y_train, dates_test, X_test
+        return ass_assignment, dates_train, X_train, y_train, dates_predict, X_predict

@@ -18,7 +18,7 @@ for week_nb in np.arange(12):
     data_loader.update_week(week_nb)
 
     # loop over ass_assignments
-    for ass_assignment, dates_train, X_train, y_train, dates_test, X_test in data_loader:
+    for ass_assignment, dates_train, X_train, y_train, dates_predict, X_predict in data_loader:
 
         # sometimes we don't need to do predictions for certain week and ass_assignment, we then continue the loop without processing ML
         if len(dates_test) == 0:
@@ -36,10 +36,10 @@ for week_nb in np.arange(12):
         clf.fit(X_train, y_train)
 
         # predict
-        y_predict = clf.predict(X_test)
+        y_predict = clf.predict(X_predict)
 
         # save prediction
-        submissioner.save(dates_test, ass_assignment, y_predict)
+        submissioner.save(dates_predict, ass_assignment, y_predict)
 
 submissioner.create_submission()
 
