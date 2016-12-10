@@ -20,6 +20,8 @@ for week_nb in np.arange(12):
     # loop over ass_assignments
     for ass_assignment, dates_train, X_train, y_train, dates_predict, X_predict in data_loader:
 
+        X_predict = X_predict.reset_index(drop=True)
+
         # sometimes we don't need to do predictions for certain week and ass_assignment, we then continue the loop without processing ML
         if len(dates_predict) == 0:
             continue
@@ -28,7 +30,7 @@ for week_nb in np.arange(12):
         clf = Pipeline(
             [
                 ("scaler", StandardScaler(with_mean=True, with_std=True)),
-                ("estimator", RandomForestRegressor(n_estimators=300, max_depth=15, n_jobs=-1, random_state=42)),
+                ("estimator", RandomForestRegressor(n_estimators=10, max_depth=5, n_jobs=-1, random_state=42)),
             ]
         )
 
@@ -37,6 +39,7 @@ for week_nb in np.arange(12):
 
         # predict
         y_predict = clf.predict(X_predict)
+        submissioner.auto_zeros_in_prediction(y_predict, ass_assignment, X_predict)
 
         # save prediction
         submissioner.save(dates_predict, ass_assignment, y_predict)

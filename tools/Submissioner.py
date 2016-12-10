@@ -5,6 +5,43 @@ import os
 
 
 class Submissioner:
+
+    ASSIGNMENTS_CLOSED_OVER_NIGHT = [
+        'CMS',
+        'Gestion Amex',
+        'Gestion Assurances',
+        'Gestion Clients',
+        'Gestion DZ',
+        'Gestion Relation Clienteles',
+        'Gestion Renault',
+        'Prestataires'
+    ]
+
+    ASSIGNMENTS_CLOSED_DURING_DAYOFFS = [
+        'CMS',
+        'Crises',
+        'Gestion',
+        'Gestion Amex',
+        'Gestion Assurances',
+        'Gestion Clients',
+        'Gestion DZ',
+        'Gestion Relation Clienteles',
+        'Gestion Renault',
+        'Prestataires',
+        'RTC'
+    ]
+
+    ASSIGNMENTS_CLOSED_DURING_NOT_WORKING_DAYS = [
+        'CMS',
+        'Gestion',
+        'Gestion Amex',
+        'Gestion Clients',
+        'Gestion DZ',
+        'Gestion Relation Clienteles',
+        'Gestion Renault',
+        'Prestataires'
+     ]
+
     def __init__(self):
         self.predictions = list()
         # during the saving process, we will save a multi-index created from dates and ass_assignments
@@ -33,6 +70,25 @@ class Submissioner:
         # write into submission file
         with open(file_name, 'w') as file:
             file.write(submission_content)
+
+    def auto_zeros_in_prediction(self, y_predict, ass_assignment, X_predict):
+        """
+        Some assignments seem closed during night or during day offs.
+        This method uses this information to put call prediction to 0 during these periods.
+        /!\ Therefore, this method modify the prediction
+        """
+        index_to_change = list()
+
+        if ass_assignment in self.ASSIGNMENTS_CLOSED_OVER_NIGHT:
+            index_to_change.extend(X_predict[X_predict["DAYTIME"] == 0].index.tolist())
+        if ass_assignment in self.ASSIGNMENTS_CLOSED_DURING_DAYOFFS:
+            index_to_change.extend(X_predict[X_predict["DAY_OFF"] == 1].index.tolist())
+        if ass_assignment in self.ASSIGNMENTS_CLOSED_DURING_NOT_WORKING_DAYS:
+            index_to_change.extend(X_predict[X_predict["NOT_WORKING_DAY"] == 1].index.tolist())
+
+        if index_to_change:
+            for index in set(index_to_change):
+                y_predict[index] = 0.0
 
     def save(self, dates_test, ass_assignment, y_predict):
         if self.multi_index is None:
