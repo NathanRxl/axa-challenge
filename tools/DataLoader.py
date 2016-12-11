@@ -74,7 +74,7 @@ class DataLoader:
         dates_train = train_df["DATE"].values
         dates_predict = submission_df["DATE"].values
         X_train = train_df.drop(["DATE", "CSPL_RECEIVED_CALLS"], axis=1)
-        X_predict = submission_df.drop(["DATE", "prediction"], axis=1)
+        X_predict = submission_df.drop(["DATE", "prediction"], axis=1).reset_index(drop=True)
         y_train = train_df["CSPL_RECEIVED_CALLS"].values
 
         return ass_assignment, dates_train, X_train, y_train, dates_predict, X_predict
