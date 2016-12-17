@@ -1,5 +1,7 @@
+import numpy as np
 import pandas as pd
 from workalendar.europe import France
+import warnings
 
 
 class Preprocessor:
@@ -21,18 +23,11 @@ class Preprocessor:
     def __init__(self):
         self.df = pd.DataFrame()
 
-    def cast_dates_into_timestamp(self):
-        # convert dates into pandas.Timestamp
-        self.df["DATE"] = self.df["DATE"].apply(lambda date: pd.Timestamp(date))
-
     def split_dates(self):
         """ Create columns in SPLIT_DATES keys from DATE. """
-
         # split dates
         for new_date_feature in self.SPLIT_DATES:
-            self.df[new_date_feature] = (
-                self.df["DATE"].apply(lambda date: getattr(date, self.SPLIT_DATES[new_date_feature]))
-            )
+            self.df[new_date_feature] = getattr(self.df.index, self.SPLIT_DATES[new_date_feature])
 
     @staticmethod
     def __is_daytime(date):
@@ -50,70 +45,56 @@ class Preprocessor:
 
     def fill_not_working_days(self):
         """ Create columns WEEK_END and DAY_OFF from DATE """
-
         # days-off
         cal = France()
-        self.df["DAY_OFF"] = self.df["DATE"].apply(lambda date: int(cal.is_holiday(date.to_pydatetime())))
-
+        self.df["DAY_OFF"] = np.vectorize(cal.is_holiday)(self.df.index.to_pydatetime()).astype(int)
         # week-end
-        self.df["WEEK_END"] = self.df["DATE"].apply(lambda date: int(date.dayofweek in [5, 6]))
-
+        self.df["WEEK_END"] = np.in1d(self.df.index.dayofweek, [5, 6]).astype(int)
         # not working day
         self.df["NOT_WORKING_DAY"] = self.df["DAY_OFF"] | self.df["WEEK_END"]
-
         # daytime
-        self.df["DAYTIME"] = self.df["DATE"].apply(lambda date: self.__is_daytime(date))
-
+        self.df["DAYTIME"] = self.df.index.map(self.__is_daytime)
         # TODO
         # long week-ends
-
         # TODO
         # school holidays
 
-    def clean_csv(self, source_path, destination_path, sep, usecols, group_by=False):
-        """
-        From raw csv dataset, create a clean csv by selecting useful columns and grouping by (DATE, ASS_ASSIGNMENT)
-        """
-
+    def preprocess_raw_data(self, train_or_submission, source_path, sep, usecols, destination_path,
+                            group_by=False, debug=False):
+        # Clean csv
+        print("Clean {} csv...".format(train_or_submission))
         # read csv
-        self.df = pd.read_csv(source_path, sep=sep, usecols=usecols)
-
+        self.df = pd.read_csv(source_path, sep=sep, parse_dates=True, index_col="DATE", usecols=usecols)
         # group by and sum received calls
         if group_by:
-            self.df = self.df.groupby(["DATE", "ASS_ASSIGNMENT"])["CSPL_RECEIVED_CALLS"].sum().reset_index()
+            self.df = (
+                self.df.groupby(by=[self.df.index, "ASS_ASSIGNMENT"])
+                       .sum().reset_index(level="ASS_ASSIGNMENT")
+            )
+        if debug:
+            self.df.to_csv("data/clean_{}.csv".format(train_or_submission), index=True)
 
-        # write csv
-        self.df.to_csv(destination_path, index=False)
-
-    def create_temporal_features(self, source_path, destination_path):
-        # read csv
-        self.df = pd.read_csv(source_path)
-
-        # cast date into pandas.Timestamp
-        self.cast_dates_into_timestamp()
-
+        # Create temporal features
+        print("Create temporal features for {} dataset...".format(train_or_submission))
         # date -> year, month,...
         self.split_dates()
-
         # fill day-off column
         self.fill_not_working_days()
+        if debug:
+            # write csv
+            self.df.to_csv("data/preprocessed_{}.csv".format(train_or_submission), index=True)
 
-        # write csv
-        self.df.to_csv(destination_path, index=False)
-
-    def csv_to_hdf(self, source_path, destination_path):
-        # read csv
-        self.df = pd.read_csv(source_path)
-
+        # Convert csv file into hdf file
+        print("Convert {} csv file into hdf file...".format(train_or_submission))
         # retrieve list of ass_assignments
         ass_assignments = self.df["ASS_ASSIGNMENT"].unique()
-
         # loop over ass_assignments to store into hdf_file
+        warnings.filterwarnings('ignore', 'object name is not a valid Python identifier')
         hdf_file = pd.HDFStore(destination_path)
         for ass_assignment in ass_assignments:
             hdf_file[ass_assignment] = (
                 self.df[self.df["ASS_ASSIGNMENT"] == ass_assignment].drop("ASS_ASSIGNMENT", axis=1)
             )
-
         # close hdf file
         hdf_file.close()
+        print()
