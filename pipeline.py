@@ -1,9 +1,9 @@
 import numpy as np
-from sklearn.ensemble import RandomForestRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from tools import DataLoader
 from tools import Submissioner
+import xgboost as xgb
 
 train_path = "data/train.h5"
 submission_path = "data/submission.h5"
@@ -12,6 +12,15 @@ submission_path = "data/submission.h5"
 submissioner = Submissioner()
 data_loader = DataLoader(train_path, submission_path)
 
+# model
+xgb_reg = Pipeline(
+    [
+        ("scaler", StandardScaler(with_mean=True, with_std=True)),
+        ("estimator", xgb.XGBRegressor(n_estimators=150, learning_rate=0.8, nthread=4)),
+    ]
+)
+total_time = 0
+# Performance note: the following loop takes 4 sec to load the data over all the 12 weeks to predict
 # loop over week of submissions
 for week_nb in np.arange(12):
     print("Prediction for week #(%d/11) ... " % week_nb, end="", flush=True)
@@ -19,28 +28,21 @@ for week_nb in np.arange(12):
 
     # loop over ass_assignments
     for ass_assignment, dates_train, X_train, y_train, dates_predict, X_predict in data_loader:
-        # sometimes we don't need to do predictions for certain week and ass_assignment, we then continue the loop without processing ML
+        # sometimes we don't need to do predictions for certain week and ass_assignment, we then continue the loop
+        # without processing ML
         if len(dates_predict) == 0:
             continue
 
-        # model
-        clf = Pipeline(
-            [
-                ("scaler", StandardScaler(with_mean=True, with_std=True)),
-                ("estimator", RandomForestRegressor(n_estimators=1, max_depth=1, n_jobs=-1, random_state=42)),
-            ]
-        )
-
         # fit
-        clf.fit(X_train, y_train)
-
+        xgb_reg.fit(X_train, y_train)
         # predict
-        y_predict = clf.predict(X_predict)
-        submissioner.auto_zeros_in_prediction(y_predict, ass_assignment, X_predict)
+        y_predict = xgb_reg.predict(X_predict)
 
+        # Performance note: the function save and auto_zeros_in_prediction take 3sec to run over the complete week loop
+        # change the prediction to true 0 when the assignment is closed
+        submissioner.auto_zeros_in_prediction(y_predict, ass_assignment, X_predict)
         # save prediction
         submissioner.save(dates_predict, ass_assignment, y_predict)
-
     print("OK")
 
 print("auto_zeros_in_prediction improved the score by:", submissioner.auto_zeros_impact, "for this submission")
