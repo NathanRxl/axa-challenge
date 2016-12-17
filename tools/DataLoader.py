@@ -32,6 +32,11 @@ class DataLoader:
         self.week_nb = None
         self.week_dates = None
         self.idx_ass_assignment = None
+        self.train_df = dict()
+        self.submission_df = dict()
+        for ass_assignment in self.LIST_ASS_ASSIGNMENTS:
+            self.train_df[ass_assignment] = pd.read_hdf(self.train_path, key=ass_assignment)
+            self.submission_df[ass_assignment] = pd.read_hdf(self.submission_path, key=ass_assignment)
 
     def update_week(self, week_nb):
         # update week and retrieve dates of the beginning and the end of the week
@@ -58,23 +63,18 @@ class DataLoader:
             raise StopIteration
 
         # read hdf files
-        train_df = pd.read_hdf(self.train_path, key=ass_assignment)
-        submission_df = pd.read_hdf(self.submission_path, key=ass_assignment)
-
-        # convert dates
-        train_df["DATE"] = train_df["DATE"].apply(lambda date: pd.Timestamp(date))
-        submission_df["DATE"] = submission_df["DATE"].apply(lambda date: pd.Timestamp(date))
+        train_df = self.train_df[ass_assignment]
+        submission_df = self.submission_df[ass_assignment]
 
         # select dates
-        # TODO: put dates as index of dataframe in order to use where kwarg in pandas.read (cf 'http://stackoverflow.com/questions/25681308/pandas-read-hdf-query-by-date-and-time-range')
-        train_df = train_df[(train_df["DATE"] < self.week_begin)]
-        submission_df = submission_df[(self.week_begin <= submission_df["DATE"]) & (submission_df["DATE"] <= self.week_end)]
+        train_df = train_df[:self.week_begin]
+        submission_df = submission_df[self.week_begin:self.week_end]
 
         # split data
-        dates_train = train_df["DATE"].values
-        dates_predict = submission_df["DATE"].values
-        X_train = train_df.drop(["DATE", "CSPL_RECEIVED_CALLS"], axis=1)
-        X_predict = submission_df.drop(["DATE", "prediction"], axis=1).reset_index(drop=True)
+        dates_train = train_df.index.values
+        dates_predict = submission_df.index.values
+        X_train = train_df.reset_index(drop=True).drop(["CSPL_RECEIVED_CALLS"], axis=1)
+        X_predict = submission_df.reset_index(drop=True).drop(["prediction"], axis=1)
         y_train = train_df["CSPL_RECEIVED_CALLS"].values
 
         return ass_assignment, dates_train, X_train, y_train, dates_predict, X_predict
