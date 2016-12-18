@@ -94,7 +94,7 @@ class Submissioner:
 
         # also change the possibly negative values to 0
         negative_predictions_idx = np.where(y_predict < 0.0)[0].tolist()
-        index_to_change.extend(np.where(negative_predictions_idx))
+        index_to_change.extend(negative_predictions_idx)
         nb_negative_predictions = len(negative_predictions_idx)
 
         if index_to_change:
