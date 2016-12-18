@@ -39,13 +39,19 @@ for week_nb in np.arange(12):
         y_predict = xgb_reg.predict(X_predict)
 
         # Performance note: the function save and auto_zeros_in_prediction take 3sec to run over the complete week loop
-        # change the prediction to true 0 when the assignment is closed
+        # change the prediction to true 0 when the assignment is closed (or the prediction negative)
         submissioner.auto_zeros_in_prediction(y_predict, ass_assignment, X_predict)
         # save prediction
         submissioner.save(dates_predict, ass_assignment, y_predict)
     print("OK")
 
-print("auto_zeros_in_prediction improved the score by:", submissioner.auto_zeros_impact, "for this submission")
+if submissioner.nb_negative_predictions > 0:
+    print(
+        "WARN: auto_zeros_in_prediction corrected",
+        "{}/{}".format(submissioner.nb_negative_predictions, submissioner.SUBMISSION_TOTAL_LENGTH),
+        "negative predictions for this submission"
+    )
+print("INFO: auto_zeros_in_prediction improved the score by:", submissioner.auto_zeros_impact, "for this submission")
 submissioner.create_submission()
 
 print("\nSubmission added in submissions/ !")
