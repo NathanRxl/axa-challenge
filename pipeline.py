@@ -80,7 +80,7 @@ TELEPHONIE = {
     'Téléphonie': 1380,
 }
 
-shared_nthread = 4
+shared_nthread = -1
 shared_objective = 'reg:linear'
 
 XGB_params = {
