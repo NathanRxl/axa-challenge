@@ -1,11 +1,13 @@
 import numpy as np
 import pandas as pd
+
 from sklearn.pipeline import Pipeline
 from sklearn.base import BaseEstimator
 from sklearn.preprocessing import StandardScaler
-from tools import DataLoader
-from tools import Submissioner
+
 import xgboost as xgb
+
+from tools import DataLoader, Submissioner
 
 train_path = "data/train.h5"
 submission_path = "data/submission.h5"
@@ -33,21 +35,163 @@ class FeatureExtractorAXAReg:
     def transform(self, X_df):
         return X_df.reset_index(drop=True)
 
+# 23 Max call during max(Daytime, Night) -> leads in average to predict 0 or 1 per 30 min
+DUST = {
+    'Prestataires': 2,
+    'CMS': 3,
+    'Gestion': 3,
+    'Gestion Renault': 3,
+    'Gestion DZ': 4,
+    'Manager': 6,
+    'Gestion Relation Clienteles': 7,
+    'Gestion Clients': 7,
+    'Mécanicien': 10,
+    'Gestion Assurances': 12,
+    'Regulation Medicale': 12,
+    'Japon': 14,
+    'SAP': 15,
+    'RTC': 23,
+}
+# Between 39 and 72 Max call during max(Daytime, Night) -> leads in average to predict 0, 1, 2 or 3 per 30 min
+DUST_2 = {
+    'Crises': 39,
+    'Médical': 52,
+    'Domicile': 68,
+    'Gestion - Accueil Telephonique': 72,
+}
+
+# Between 100 Max call during max(Daytime, Night) -> begin to have a significant impact on score if mispredicted
+FIVE_HUNDRED = {
+    'RENAULT': 100,
+    'Services': 100,
+    'Tech. Inter': 100,
+    'Tech. Total': 100,
+    'Nuit': 110,
+}
+
+# Major impact on score :
+BIG_BROTHERS = {
+    'CAT': 250,
+    'Tech. Axa': 410,
+}
+
+# Impact on score is similar to the one of all the others together
+TELEPHONIE = {
+    'Téléphonie': 1380,
+}
+
+shared_nthread = 4
+shared_objective = 'reg:linear'
+
+XGB_params = {
+    'DUST': {
+        'n_estimators': 5,
+        'max_depth': 2,
+        'learning_rate': 0.9,
+        'nthread': shared_nthread,
+        'objective': shared_objective,
+        'subsample': 1.0,
+        'colsample_bytree': 1.0,
+        'colsample_bylevel': 1.0,
+    },
+
+    'DUST_2': {
+        'n_estimators': 10,
+        'max_depth': 2,
+        'learning_rate': 0.9,
+        'nthread': shared_nthread,
+        'objective': shared_objective,
+        'subsample': 1.0,
+        'colsample_bytree': 1.0,
+        'colsample_bylevel': 1.0,
+    },
+
+    'FIVE_HUNDRED': {
+        'n_estimators': 50,
+        'max_depth': 3,
+        'learning_rate': 0.8,
+        'nthread': shared_nthread,
+        'objective': shared_objective,
+        'subsample': 1.0,
+        'colsample_bytree': 1.0,
+        'colsample_bylevel': 1.0,
+    },
+
+    'BIG_BROTHERS': {
+        'n_estimators': 150,
+        'max_depth': 4,
+        'learning_rate': 0.7,
+        'nthread': shared_nthread,
+        'objective': shared_objective,
+        'subsample': 1.0,
+        'colsample_bytree': 1.0,
+        'colsample_bylevel': 1.0,
+    },
+
+    'TELEPHONIE': {
+        'n_estimators': 500,
+        'max_depth': 5,
+        'learning_rate': 0.6,
+        'nthread': shared_nthread,
+        'objective': shared_objective,
+        'subsample': 1.0,
+        'colsample_bytree': 1.0,
+        'colsample_bylevel': 1.0,
+    },
+}
+
 
 class AXARegressor(BaseEstimator):
-    def __init__(self, n_estimators=150, learning_rate=0.8, nthread=4):
-        self.dict_reg_xgb = Pipeline(
-            [
-                ("scaler", StandardScaler(with_mean=True, with_std=True)),
-                ("reg", xgb.XGBRegressor(n_estimators=n_estimators, learning_rate=learning_rate, nthread=nthread)),
-            ]
-        )
+    def __init__(self):
+        self.dict_reg_xgb = dict()
+        for ass_assignment in data_loader.LIST_ASS_ASSIGNMENTS:
+            if ass_assignment in DUST:
+                self.dict_reg_xgb[ass_assignment] = Pipeline(
+                    [
+                        ("scaler", StandardScaler(with_mean=True, with_std=True)),
+                        ("reg", xgb.XGBRegressor(**XGB_params['DUST'])),
+                    ]
+                )
 
-    def fit(self, X_transform, y):
-        self.dict_reg_xgb.fit(X_transform, y)
+            elif ass_assignment in DUST_2:
+                self.dict_reg_xgb[ass_assignment] = Pipeline(
+                    [
+                        ("scaler", StandardScaler(with_mean=True, with_std=True)),
+                        ("reg", xgb.XGBRegressor(**XGB_params['DUST_2'])),
+                    ]
+                )
 
-    def predict(self, X_transform):
-        return self.dict_reg_xgb.predict(X_transform)
+            elif ass_assignment in FIVE_HUNDRED:
+                self.dict_reg_xgb[ass_assignment] = Pipeline(
+                    [
+                        ("scaler", StandardScaler(with_mean=True, with_std=True)),
+                        ("reg", xgb.XGBRegressor(**XGB_params['FIVE_HUNDRED'])),
+                    ]
+                )
+
+            elif ass_assignment in BIG_BROTHERS:
+                self.dict_reg_xgb[ass_assignment] = Pipeline(
+                    [
+                        ("scaler", StandardScaler(with_mean=True, with_std=True)),
+                        ("reg", xgb.XGBRegressor(**XGB_params['BIG_BROTHERS'])),
+                    ]
+                )
+
+            elif ass_assignment in TELEPHONIE:
+                self.dict_reg_xgb[ass_assignment] = Pipeline(
+                    [
+                        ("scaler", StandardScaler(with_mean=True, with_std=True)),
+                        ("reg", xgb.XGBRegressor(**XGB_params['TELEPHONIE'])),
+                    ]
+                )
+            else:
+                raise('ASS_ASSIGNMENT {} unknown.'.format(ass_assignment))
+
+    def fit(self, X_transform, y, assignment):
+        self.dict_reg_xgb[assignment].fit(X_transform, y)
+
+    def predict(self, X_transform, assignment):
+        return self.dict_reg_xgb[assignment].predict(X_transform)
 
 feature_extractor_reg = FeatureExtractorAXAReg()
 xgb_reg = AXARegressor()
@@ -83,11 +227,11 @@ for week_nb in np.arange(12):
 
         # fit
         X_train = feature_extractor_reg.transform(X_train)
-        xgb_reg.fit(X_train, y_train)
+        xgb_reg.fit(X_train, y_train, ass_assignment)
 
         # predict
         X_predict = feature_extractor_reg.transform(X_predict)
-        y_predict = xgb_reg.predict(X_predict)
+        y_predict = xgb_reg.predict(X_predict, ass_assignment)
 
         # When predictions are negative make them all positive by increasing them all
         y_predict = submissioner.up_prediction(y_predict)
