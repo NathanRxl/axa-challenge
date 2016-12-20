@@ -69,6 +69,7 @@ for week_nb in np.arange(12):
     for ass_assignment, dates_train, X_train, y_train, dates_predict, X_predict in data_loader:
         # sometimes we don't need to do predictions for certain week and ass_assignment, we then continue the loop
         # without processing ML
+
         if len(dates_predict) == 0:
             continue
 
@@ -88,9 +89,11 @@ for week_nb in np.arange(12):
         X_predict = feature_extractor_reg.transform(X_predict)
         y_predict = xgb_reg.predict(X_predict)
 
+        # When predictions are negative make them all positive by increasing them all
+        y_predict = submissioner.up_prediction(y_predict)
         # Performance note: the function save and auto_zeros_in_prediction take 3sec to run over the complete week loop
         # change the prediction to true 0 when the assignment is closed (or the prediction negative)
-        submissioner.auto_zeros_in_prediction(y_predict, ass_assignment, X_predict)
+        y_predict = submissioner.auto_zeros_in_prediction(y_predict, ass_assignment, X_predict)
         # save prediction
         submissioner.save(dates_predict, ass_assignment, y_predict)
 

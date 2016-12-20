@@ -77,12 +77,23 @@ class Submissioner:
         with open(file_name, 'w') as file:
             file.write(submission_content)
 
+    @staticmethod
+    def up_prediction(y_predict):
+        new_y_predict = y_predict.copy()
+        negative_predictions = y_predict[y_predict < 0.0]
+        if len(negative_predictions) > 0:
+            new_y_predict = new_y_predict - min(negative_predictions)
+            return new_y_predict
+        else:
+            return new_y_predict
+
     def auto_zeros_in_prediction(self, y_predict, ass_assignment, X_predict, verbose=0):
         """
         Some assignments seem closed during night or during day offs.
         This method uses this information to put call prediction to 0 during these periods.
         /!\ Therefore, this method modify the prediction
         """
+        new_y_predict = y_predict.copy()
         index_to_change = list()
 
         if ass_assignment in self.ASSIGNMENTS_CLOSED_OVER_NIGHT:
@@ -105,7 +116,7 @@ class Submissioner:
             for index in index_to_change:
                 local_change_in_loss = metrics.linex_score([0.0], [y_predict[index]])
                 total_change_in_loss += abs(local_change_in_loss)
-                y_predict[index] = 0.0
+                new_y_predict[index] = 0.0
                 if verbose == 2:
                     print(
                         "Index", index, "of prediction for assignment", ass_assignment,
@@ -123,6 +134,8 @@ class Submissioner:
 
             self.auto_zeros_impact += total_change_in_loss / float(self.SUBMISSION_TOTAL_LENGTH)
             self.nb_negative_predictions += nb_negative_predictions
+
+        return new_y_predict
 
     def save(self, dates_test, ass_assignment, y_predict):
         if self.multi_index is None:
