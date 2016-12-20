@@ -20,6 +20,15 @@ class Preprocessor:
         "DAY_OF_WEEK": "dayofweek",
     }
 
+    CATEGORICAL_FEATURES = [
+        ("YEAR", pd.Series([2011, 2012, 2013])),
+        ("MONTH", pd.Series(np.arange(12))),
+        ("DAY", pd.Series(np.arange(31))),
+        ("HOUR", pd.Series(np.arange(24))),
+        ("MINUTE", pd.Series([0, 30])),
+        ("DAY_OF_WEEK", pd.Series(np.arange(7))),
+    ]
+
     def __init__(self):
         self.df = pd.DataFrame()
 
@@ -59,8 +68,21 @@ class Preprocessor:
         # TODO
         # school holidays
 
+    def create_dummy(self, drop_first=True):
+        from time import time
+        """ Create dummy features from categorical features """
+        for feature_name, feature_values in self.CATEGORICAL_FEATURES:
+            nb_possible_values = len(feature_values)
+            # append every possible values of the feature to real feature column
+            enhanced_feature_series = self.df[feature_name].append(feature_values)
+            # get dummy features
+            dummy_features_df = pd.get_dummies(enhanced_feature_series, prefix=feature_name, drop_first=drop_first)[:-nb_possible_values]
+            # drop old feature column and add dummy features
+            self.df.drop(feature_name, axis=1, inplace=True)
+            self.df[dummy_features_df.columns] = dummy_features_df.astype(int)
+
     def preprocess_raw_data(self, train_or_submission, source_path, sep, usecols, destination_path,
-                            group_by=False, debug=False):
+                            group_by=False, dummy_features=False, debug=False):
         # Clean csv
         print("Clean {} csv...".format(train_or_submission))
         # read csv
@@ -69,7 +91,7 @@ class Preprocessor:
         if group_by:
             self.df = (
                 self.df.groupby(by=[self.df.index, "ASS_ASSIGNMENT"])
-                       .sum().reset_index(level="ASS_ASSIGNMENT")
+                    .sum().reset_index(level="ASS_ASSIGNMENT")
             )
         if debug:
             self.df.to_csv("data/clean_{}.csv".format(train_or_submission), index=True)
@@ -80,6 +102,9 @@ class Preprocessor:
         self.split_dates()
         # fill day-off column
         self.fill_not_working_days()
+        # create dummy features
+        if dummy_features:
+            self.create_dummy()
         if debug:
             # write csv
             self.df.to_csv("data/preprocessed_{}.csv".format(train_or_submission), index=True)
