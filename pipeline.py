@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from matplotlib import pyplot as plt
 
 from sklearn.pipeline import Pipeline
 from sklearn.base import BaseEstimator
@@ -85,58 +86,53 @@ shared_objective = 'reg:linear'
 
 XGB_params = {
     'DUST': {
-        'n_estimators': 5,
-        'max_depth': 2,
+        'n_estimators': 25,
+        'max_depth': 4,
         'learning_rate': 0.9,
         'nthread': shared_nthread,
         'objective': shared_objective,
         'subsample': 1.0,
         'colsample_bytree': 1.0,
-        'colsample_bylevel': 1.0,
     },
 
     'DUST_2': {
-        'n_estimators': 10,
-        'max_depth': 2,
+        'n_estimators': 45,
+        'max_depth': 4,
         'learning_rate': 0.9,
         'nthread': shared_nthread,
         'objective': shared_objective,
         'subsample': 1.0,
         'colsample_bytree': 1.0,
-        'colsample_bylevel': 1.0,
     },
 
     'FIVE_HUNDRED': {
-        'n_estimators': 50,
-        'max_depth': 3,
+        'n_estimators': 100,
+        'max_depth': 4,
         'learning_rate': 0.8,
         'nthread': shared_nthread,
         'objective': shared_objective,
         'subsample': 1.0,
         'colsample_bytree': 1.0,
-        'colsample_bylevel': 1.0,
     },
 
     'BIG_BROTHERS': {
-        'n_estimators': 150,
+        'n_estimators': 175,
         'max_depth': 4,
         'learning_rate': 0.7,
         'nthread': shared_nthread,
         'objective': shared_objective,
         'subsample': 1.0,
         'colsample_bytree': 1.0,
-        'colsample_bylevel': 1.0,
     },
 
     'TELEPHONIE': {
-        'n_estimators': 500,
+        'n_estimators': 850,
         'max_depth': 5,
-        'learning_rate': 0.6,
+        'learning_rate': 0.8,
         'nthread': shared_nthread,
         'objective': shared_objective,
         'subsample': 1.0,
         'colsample_bytree': 1.0,
-        'colsample_bylevel': 1.0,
     },
 }
 
@@ -230,7 +226,9 @@ class AXARegressor(BaseEstimator):
 feature_extractor_reg = FeatureExtractorAXAReg()
 xgb_reg = AXARegressor()
 # Performance note: use anterior predictions add 4 sec to the complete week loop
-use_anterior_predictions = True
+use_anterior_predictions = False
+hybrid_approach = False
+plot_feature_importance = False
 
 if use_anterior_predictions:
     Xtra_train = dict()
@@ -247,8 +245,8 @@ for week_nb in np.arange(12):
     for ass_assignment, dates_train, X_train, y_train, dates_predict, X_predict in data_loader:
         # sometimes we don't need to do predictions for certain week and ass_assignment, we then continue the loop
         # without processing ML
-
-        if len(dates_predict) == 0:
+        # if you want to exclude some assignment from the prediction put it here
+        if len(dates_predict) == 0 or ass_assignment not in FIVE_HUNDRED:
             continue
 
         if use_anterior_predictions:
@@ -261,14 +259,46 @@ for week_nb in np.arange(12):
 
         # fit
         X_train = feature_extractor_reg.transform(X_train)
-        xgb_reg.fit(X_train, y_train, ass_assignment)
 
         # predict
         X_predict = feature_extractor_reg.transform(X_predict)
-        y_predict = xgb_reg.predict(X_predict, ass_assignment)
 
-        # When predictions are negative make them all positive by increasing them all
-        y_predict = submissioner.up_prediction(y_predict)
+        # You can put the assignments you want to predict with the heuristic in this if
+        if hybrid_approach and (ass_assignment in BIG_BROTHERS or ass_assignment in TELEPHONIE):
+            """ Use the best heuristic we found for now """
+            X_train["CSPL_RECEIVED_CALLS"] = y_train
+            y_predict = list()
+            prediction = X_train.groupby(["YEAR", "HOUR", "NOT_WORKING_DAY"])["CSPL_RECEIVED_CALLS"].max().to_dict()
+            for year, hour, not_working_day in X_predict[["YEAR", "HOUR", "NOT_WORKING_DAY"]].values:
+                try:
+                    y_predict.append(prediction[(year, hour, not_working_day)])
+                except KeyError:
+                    initial_len_predict = len(y_predict)
+                    y, h = 0, 0
+                    while initial_len_predict == len(y_predict):
+                        try:
+                            if h == 0:
+                                h += 1
+                            elif h > 0:
+                                h = -h
+                            elif h < 0:
+                                h = -h + 1
+                            elif h > 2:
+                                y += 1
+                                h = 0
+                            y_predict.append(prediction[(year - y, hour - h, not_working_day)])
+                        except KeyError:
+                            continue
+            y_predict = np.array(y_predict)
+            X_train = X_train.drop(["CSPL_RECEIVED_CALLS"], axis=1)
+        else:
+            xgb_reg.fit(X_train, y_train, ass_assignment)
+            if plot_feature_importance and (ass_assignment in BIG_BROTHERS or ass_assignment in TELEPHONIE):
+                xgb.plot_importance(xgb_reg.dict_reg_xgb[ass_assignment].named_steps['reg'])
+                plt.title("{}".format(ass_assignment))
+                plt.show()
+            y_predict = xgb_reg.predict(X_predict, ass_assignment)
+
         # When predictions are negative make them all positive by increasing them all,
         # then apply a coefficient assignment specific
         y_predict = submissioner.up_prediction(y_predict, ass_assignment, up_coef)
@@ -302,6 +332,7 @@ if submissioner.nb_negative_predictions > 0:
         "negative predictions for this submission"
     )
 print("INFO: auto_zeros_in_prediction improved the score by:", submissioner.auto_zeros_impact, "for this submission")
+# in order to create a submission from a particular anterior submission
+# submissioner.create_submission(ref_submission_path="submissions/submission60.txt")
 submissioner.create_submission()
-
 print("\nSubmission added in submissions/ !")
