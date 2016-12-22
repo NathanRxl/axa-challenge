@@ -78,14 +78,14 @@ class Submissioner:
             file.write(submission_content)
 
     @staticmethod
-    def up_prediction(y_predict):
+    def up_prediction(y_predict, ass_assignment, up_coef):
         new_y_predict = y_predict.copy()
         negative_predictions = y_predict[y_predict < 0.0]
-        if len(negative_predictions) > 0:
+        if len(negative_predictions) > 0 and ass_assignment in ['CAT', 'Tech. Axa', 'Téléphonie']:
             new_y_predict = new_y_predict - min(negative_predictions)
-            return new_y_predict
+            return up_coef[ass_assignment] * new_y_predict
         else:
-            return new_y_predict
+            return up_coef[ass_assignment] * new_y_predict
 
     def auto_zeros_in_prediction(self, y_predict, ass_assignment, X_predict, verbose=0):
         """

@@ -140,6 +140,40 @@ XGB_params = {
     },
 }
 
+up_coef = {
+    # TELEPHONIE
+    'Téléphonie': 1.10,
+    # BIG_BROTHERS
+    'Tech. Axa': 1.40,
+    'CAT': 1.40,
+    # FIVE_HUNDRED
+    'Nuit': 1.0,
+    'RENAULT': 1.0,
+    'Services': 1.0,
+    'Tech. Inter': 1.0,
+    'Tech. Total': 1.0,
+    # DUST_2
+    'Gestion - Accueil Telephonique': 1.0,
+    'Domicile': 1.0,
+    'Médical': 1.0,
+    'Crises': 1.0,
+    # DUST
+    'RTC': 1.0,
+    'SAP': 1.0,
+    'Japon': 1.0,
+    'Gestion Assurances': 1.0,
+    'Regulation Medicale': 1.0,
+    'Mécanicien': 1.0,
+    'Gestion Relation Clienteles': 1.0,
+    'Gestion Clients': 1.0,
+    'Manager': 1.0,
+    'Gestion DZ': 1.0,
+    'CMS': 1.0,
+    'Gestion': 1.0,
+    'Gestion Renault': 1.0,
+    'Prestataires': 1.0,
+}
+
 
 class AXARegressor(BaseEstimator):
     def __init__(self):
@@ -235,6 +269,9 @@ for week_nb in np.arange(12):
 
         # When predictions are negative make them all positive by increasing them all
         y_predict = submissioner.up_prediction(y_predict)
+        # When predictions are negative make them all positive by increasing them all,
+        # then apply a coefficient assignment specific
+        y_predict = submissioner.up_prediction(y_predict, ass_assignment, up_coef)
         # Performance note: the function save and auto_zeros_in_prediction take 3sec to run over the complete week loop
         # change the prediction to true 0 when the assignment is closed (or the prediction negative)
         y_predict = submissioner.auto_zeros_in_prediction(y_predict, ass_assignment, X_predict)
