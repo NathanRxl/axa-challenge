@@ -144,30 +144,30 @@ up_coef = {
     'CAT': 1.40,
     # FIVE_HUNDRED
     'Nuit': 1.0,
-    'RENAULT': 1.0,
-    'Services': 1.0,
-    'Tech. Inter': 1.0,
-    'Tech. Total': 1.0,
+    'RENAULT': 1.20,
+    'Services': 1.20,
+    'Tech. Inter': 1.20,
+    'Tech. Total': 1.20,
     # DUST_2
-    'Gestion - Accueil Telephonique': 1.0,
-    'Domicile': 1.0,
-    'Médical': 1.0,
-    'Crises': 1.0,
+    'Gestion - Accueil Telephonique': 1.10,
+    'Domicile': 1.10,
+    'Médical': 1.10,
+    'Crises': 1.10,
     # DUST
-    'RTC': 1.0,
-    'SAP': 1.0,
-    'Japon': 1.0,
-    'Gestion Assurances': 1.0,
-    'Regulation Medicale': 1.0,
-    'Mécanicien': 1.0,
-    'Gestion Relation Clienteles': 1.0,
-    'Gestion Clients': 1.0,
-    'Manager': 1.0,
-    'Gestion DZ': 1.0,
-    'CMS': 1.0,
-    'Gestion': 1.0,
-    'Gestion Renault': 1.0,
-    'Prestataires': 1.0,
+    'RTC': 1.10,
+    'SAP': 1.10,
+    'Japon': 1.10,
+    'Gestion Assurances': 1.10,
+    'Regulation Medicale': 1.10,
+    'Mécanicien': 1.10,
+    'Gestion Relation Clienteles': 1.10,
+    'Gestion Clients': 1.10,
+    'Manager': 1.10,
+    'Gestion DZ': 1.10,
+    'CMS': 1.10,
+    'Gestion': 1.10,
+    'Gestion Renault': 1.10,
+    'Prestataires': 1.10,
 }
 
 
@@ -245,9 +245,20 @@ for week_nb in np.arange(12):
     for ass_assignment, dates_train, X_train, y_train, dates_predict, X_predict in data_loader:
         # sometimes we don't need to do predictions for certain week and ass_assignment, we then continue the loop
         # without processing ML
-        # if you want to exclude some assignment from the prediction put it here
-        if len(dates_predict) == 0 or ass_assignment not in FIVE_HUNDRED:
+        if len(dates_predict) == 0:
             continue
+
+        # if you want to exclude some assignment from the prediction uncomment here
+        # if ass_assignment in TELEPHONIE:
+        #     continue
+        # if ass_assignment in BIG_BROTHERS:
+        #     continue
+        # if ass_assignment in FIVE_HUNDRED:
+        #     continue
+        # if ass_assignment in DUST:
+        #     continue
+        # if ass_assignment in DUST_2:
+        #     continue
 
         if use_anterior_predictions:
             # debug checks: X_train length is augmented by Xtra_train length
@@ -333,6 +344,6 @@ if submissioner.nb_negative_predictions > 0:
     )
 print("INFO: auto_zeros_in_prediction improved the score by:", submissioner.auto_zeros_impact, "for this submission")
 # in order to create a submission from a particular anterior submission
-# submissioner.create_submission(ref_submission_path="submissions/submission60.txt")
-submissioner.create_submission()
+submissioner.create_submission(ref_submission_path="submissions/submission76.txt")
+# submissioner.create_submission()
 print("\nSubmission added in submissions/ !")
