@@ -1,15 +1,9 @@
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
-
-from sklearn.pipeline import Pipeline
-from sklearn.base import BaseEstimator
-from sklearn.preprocessing import StandardScaler
-
 import xgboost as xgb
 
 from tools import DataLoader, Submissioner
-
 from model import AXARegressor, FeatureExtractorAXAReg, up_coef, DUST, DUST_2, FIVE_HUNDRED, BIG_BROTHERS, TELEPHONIE
 
 train_path = "data/train.h5"

@@ -1,62 +1,98 @@
+import pandas as pd
 import numpy as np
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
+from collections import defaultdict
 from sklearn.model_selection import KFold
 
-from tools import data_loader
-from test_model import linex_error
+from tools import DataLoader, Submissioner
+from test_model import metrics
+
+# import model
+from model import AXARegressor, FeatureExtractorAXAReg, up_coef, DUST, DUST_2, FIVE_HUNDRED, BIG_BROTHERS, TELEPHONIE
+
+feature_extractor = FeatureExtractorAXAReg()
+clf = AXARegressor()
 
 # parameters
-path = "data/train_2011_2012_2013.csv"
-nrows = 10000
-verbose = 1
-randomState = 42
-nbFolds = 10
+train_path = "data/train.h5"
+verbose = 0
+random_state = 42
+nb_folds = 10
 
-# load data
-# TODO: create h5 file from csv with cleaned data then load data directly from h5 file
-X_train, y_train, X_test = data_loader(path, nrows)
+# loop over ass_assignments
+dict_errors = defaultdict(list)
+for ass_assignment in DataLoader.LIST_ASS_ASSIGNMENTS:
+    print("%s..." % ass_assignment)
+    # load data
+    df_train = pd.read_hdf(train_path, key=ass_assignment)
+    dates_train = df_train.index.values
+    X_train = df_train.drop(["CSPL_RECEIVED_CALLS"], axis=1)
+    y_train = df_train["CSPL_RECEIVED_CALLS"].values
 
-# classifier
-clf = Pipeline(
-    [
-        ("scaler", StandardScaler(with_mean=True, with_std=True)),
-        ("estimator", RandomForestRegressor(n_estimators=300, max_depth=15, n_jobs=-1, random_state=randomState)),
-    ]
-)
+    # cross validation
+    list_errors_this_assignment = []
+    kfold = KFold(nb_folds, random_state=random_state)
+    for idFold, (train_indexes, test_indexes) in enumerate(kfold.split(X_train)):
+        X_train_CV = X_train.loc[train_indexes]
+        y_train_CV = y_train[train_indexes]
+        X_train_CV = feature_extractor.transform(X_train_CV)
 
-# cross-validation
-list_errors = []
-for idFold, (train_indexes, test_indexes) in enumerate(KFold(len(X_train), nbFolds, random_state=randomState)):
-    X_train_CV = X_train.loc[train_indexes]
-    y_train_CV = y_train[train_indexes]
+        X_test_CV = X_train.loc[test_indexes]
+        y_test_CV = y_train[test_indexes]
+        X_test_CV = feature_extractor.transform(X_test_CV)
 
-    X_test_CV = X_train.loc[test_indexes]
-    y_test_CV = y_train[test_indexes]
+        # fit
+        clf.fit(X_train_CV, y_train_CV, ass_assignment)
 
-    # fit
-    clf.fit(X_train_CV, y_train_CV)
+        # predict
+        y_predict_CV = clf.predict(X_test_CV, ass_assignment)
+        submissioner = Submissioner()
+        y_predict_CV = submissioner.up_prediction(y_predict_CV, ass_assignment, up_coef)
+        y_predict_CV = submissioner.auto_zeros_in_prediction(y_predict_CV, ass_assignment, X_test_CV)
 
-    # predict
-    y_predict_CV = clf.predict(X_test_CV)
+        # compute error
+        error = metrics.linex_score(y_test_CV, y_predict_CV)
+        list_errors_this_assignment.append(error)
+        if verbose >= 1:
+            print("KFold #%d:" % idFold)
+            print("LinEx error for this fold: %0.2f\n" % error)
 
-    # compute error
-    error = linex_error(y_test_CV, y_predict_CV)
-    list_errors.append(error)
+    # consolidated error for this ass_assignment
     if verbose >= 1:
-        print("KFold #%d:" % idFold)
-        print("LinEx error for this fold: %0.2f\n" % error)
+        print(
+            """
+            Statistics on error:
+                \n   -> Mean: %0.2f
+                \n   -> Std: %0.2f
+                \n   -> Min: %0.2f
+                \n   -> Max: %0.2f
 
-# consolidated error
-if verbose >= 1:
+            \n""" % (np.mean(list_errors_this_assignment), np.std(list_errors_this_assignment), np.min(list_errors_this_assignment), np.max(list_errors_this_assignment))
+        )
+
+    # keep tracks of all errors
+    if ass_assignment in DUST:
+        dict_errors["DUST"].extend(list_errors_this_assignment)
+    elif ass_assignment in DUST_2:
+        dict_errors["DUST_2"].extend(list_errors_this_assignment)
+    elif ass_assignment in FIVE_HUNDRED:
+        dict_errors["FIVE_HUNDRED"].extend(list_errors_this_assignment)
+    elif ass_assignment in BIG_BROTHERS:
+        dict_errors["BIG_BROTHERS"].extend(list_errors_this_assignment)
+    elif ass_assignment in TELEPHONIE:
+        dict_errors["TELEPHONIE"].extend(list_errors_this_assignment)
+    else:
+        raise ValueError
+
+# consolidated error for each category of ass_assignment
+print("Consolidated error for each category")
+for category, errors in dict_errors.items():
     print(
         """
-        Statistics on error:
+        Statistics for category %s:
             \n   -> Mean: %0.2f
             \n   -> Std: %0.2f
             \n   -> Min: %0.2f
             \n   -> Max: %0.2f
 
-        """ % (np.mean(list_errors), np.std(list_errors), np.min(list_errors), np.max(list_errors))
+        \n""" % (category, np.mean(errors), np.std(errors), np.min(errors), np.max(errors))
     )
