@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from workalendar.europe import France
 import warnings
+from datetime import datetime
 
 
 class Preprocessor:
@@ -63,13 +64,15 @@ class Preprocessor:
         self.df["NOT_WORKING_DAY"] = self.df["DAY_OFF"] | self.df["WEEK_END"]
         # daytime
         self.df["DAYTIME"] = self.df.index.map(self.__is_daytime)
+        # time since epoch
+        # epoch = datetime.utcfromtimestamp(0)
+        # self.df["SINCE_EPOCH"] = self.df.index.map(lambda date: (date.to_pydatetime() - epoch).total_seconds())
         # TODO
         # long week-ends
         # TODO
         # school holidays
 
     def create_dummy(self, drop_first=True):
-        from time import time
         """ Create dummy features from categorical features """
         for feature_name, feature_values in self.CATEGORICAL_FEATURES:
             nb_possible_values = len(feature_values)
