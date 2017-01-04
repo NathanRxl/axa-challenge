@@ -16,22 +16,26 @@ clf = AXARegressor()
 train_path = "data/train.h5"
 verbose = 0
 random_state = 42
-nb_folds = 10
+nb_folds = 5
 
 # loop over ass_assignments
 dict_errors = defaultdict(list)
+print("KFold cross-validation of the model on {} folds, assignment per assignment".format(nb_folds))
+nb_assignments = len(DataLoader.LIST_ASS_ASSIGNMENTS)
 for ass_assignment in DataLoader.LIST_ASS_ASSIGNMENTS:
-    print("%s..." % ass_assignment)
+    print("\t Cross validation Linex impact error on %s ... " % ass_assignment, end='', flush=True)
     # load data
     df_train = pd.read_hdf(train_path, key=ass_assignment)
     dates_train = df_train.index.values
     X_train = df_train.drop(["CSPL_RECEIVED_CALLS"], axis=1)
+    X_train = feature_extractor.transform(X_train)
     y_train = df_train["CSPL_RECEIVED_CALLS"].values
 
     # cross validation
     list_errors_this_assignment = []
     kfold = KFold(nb_folds, random_state=random_state)
     for idFold, (train_indexes, test_indexes) in enumerate(kfold.split(X_train)):
+        # TODO: Only use anterior dates for training during CV
         X_train_CV = X_train.loc[train_indexes]
         y_train_CV = y_train[train_indexes]
         X_train_CV = feature_extractor.transform(X_train_CV)
@@ -52,21 +56,24 @@ for ass_assignment in DataLoader.LIST_ASS_ASSIGNMENTS:
         # compute error
         error = metrics.linex_score(y_test_CV, y_predict_CV)
         list_errors_this_assignment.append(error)
-        if verbose >= 1:
-            print("KFold #%d:" % idFold)
-            print("LinEx error for this fold: %0.2f\n" % error)
 
+    linex_error = float(np.mean(list_errors_this_assignment))
+    print(
+        "%0.4f" % (linex_error / nb_assignments)
+    )
     # consolidated error for this ass_assignment
     if verbose >= 1:
         print(
-            """
-            Statistics on error:
-                \n   -> Mean: %0.2f
-                \n   -> Std: %0.2f
-                \n   -> Min: %0.2f
-                \n   -> Max: %0.2f
-
-            \n""" % (np.mean(list_errors_this_assignment), np.std(list_errors_this_assignment), np.min(list_errors_this_assignment), np.max(list_errors_this_assignment))
+            """\t Statistics on error:
+            -> Mean: %0.2f
+            -> Std: %0.2f
+            -> Min: %0.2f
+            -> Max: %0.2f
+            -> Corresponding Linex Error: %0.2f""" % (float(np.mean(list_errors_this_assignment)),
+                                                      float(np.std(list_errors_this_assignment)),
+                                                      np.min(list_errors_this_assignment),
+                                                      np.max(list_errors_this_assignment),
+                                                      linex_error)
         )
 
     # keep tracks of all errors
@@ -84,15 +91,26 @@ for ass_assignment in DataLoader.LIST_ASS_ASSIGNMENTS:
         raise ValueError
 
 # consolidated error for each category of ass_assignment
-print("Consolidated error for each category")
+print("\nConsolidated error for each category")
+linex_score = 0
 for category, errors in dict_errors.items():
+    nb_assignment_in_category = len(category)
+    error = float(np.mean(errors))
+    impact_on_linex_score = error * nb_assignment_in_category / nb_assignments
     print(
-        """
-        Statistics for category %s:
-            \n   -> Mean: %0.2f
-            \n   -> Std: %0.2f
-            \n   -> Min: %0.2f
-            \n   -> Max: %0.2f
-
-        \n""" % (category, np.mean(errors), np.std(errors), np.min(errors), np.max(errors))
+        """\t Statistics for category %s:
+        -> Mean: %0.2f
+        -> Std: %0.2f
+        -> Min: %0.2f
+        -> Max: %0.2f
+        -> Impact of %s on final Linex score: %0.2f""" % (category,
+                                                          float(np.mean(errors)) / nb_assignment_in_category,
+                                                          float(np.std(errors)) / nb_assignment_in_category,
+                                                          np.min(errors) / nb_assignment_in_category,
+                                                          np.max(errors) / nb_assignment_in_category,
+                                                          category,
+                                                          impact_on_linex_score)
     )
+    linex_score += impact_on_linex_score
+
+print("\nWhich gives a final cross-validation Linex score of %0.3f" % linex_score)
