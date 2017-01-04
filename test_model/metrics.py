@@ -50,7 +50,7 @@ def linex_score(y_true, y_predict, alpha=0.1):
     """
     error = np.array(y_true) - np.array(y_predict)
     max_error = max(error)
-    log_sum_exp = max_error + np.log(np.sum(np.exp(alpha * (error - max_error))))
+    log_sum_exp = alpha * max_error + np.log(np.sum(np.exp(alpha * (error - max_error))))
     return (np.exp(log_sum_exp) - np.sum(alpha * error)) / len(error) - 1
 
 
