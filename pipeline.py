@@ -136,5 +136,4 @@ if submissioner.nb_negative_predictions > 0:
 print("INFO: auto_zeros_in_prediction improved the score by:", submissioner.auto_zeros_impact, "for this submission")
 # in order to create a submission from a particular anterior submission
 submissioner.create_submission()
-# submissioner.create_submission()
 print("\nSubmission added in submissions/ !")
